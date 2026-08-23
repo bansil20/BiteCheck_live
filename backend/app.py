@@ -1050,4 +1050,5 @@ if __name__ == "__main__":
         print("✅ LBPH model loaded from trainer.yml")
     else:
         print("⚠️ No LBPH model yet. It will be created after first student registration.")
-    app.run(debug=False, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
