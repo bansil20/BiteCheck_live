@@ -605,7 +605,7 @@ def get_attendance_in_stdprofile(studid):
 
 
 def _fetch_current_or_upcoming_food_data():
-    now = datetime.now()
+    now = datetime.now(IST)
     current_time = now.time()
     current_day = now.strftime("%A")
 
@@ -686,7 +686,8 @@ def get_current_food():
 
 @app.route("/meal_attendance_stats", methods=["GET"])
 def meal_attendance_stats():
-    today = date.today()
+    now_ist = datetime.now(IST)
+    today = now_ist.date()
     start_today = datetime.combine(today, datetime.min.time())
     end_today = datetime.combine(today, datetime.max.time())
 
@@ -732,7 +733,8 @@ def meal_attendance_stats():
 
 @app.route("/meal_today_counts", methods=["GET"])
 def meal_today_counts():
-    today = date.today()
+    now_ist = datetime.now(IST)
+    today = now_ist.date()
     start_today = datetime.combine(today, datetime.min.time())
     end_today = datetime.combine(today, datetime.max.time())
 
@@ -788,7 +790,7 @@ def last7_meal_attendance(mealtype):
 
 @app.route("/best_food_last7", methods=["GET"])
 def best_food_last7():
-    today = datetime.now().date()
+    today = datetime.now(IST).date()
     seven_days_ago = datetime.combine(today - timedelta(days=7), datetime.min.time())
 
     pipeline = [
