@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../utlis/api";
+﻿import { API_BASE_URL } from "../utlis/api";
 import React from "react";
 
 function ScanAndPay() {
@@ -13,7 +13,7 @@ function ScanAndPay() {
         {/* QR Box */}
         <div className="border rounded p-3 bg-white mb-3">
           <img
-            src=`${API_BASE_URL}/static/ScanAndPay.png`
+            src={`${API_BASE_URL}/static/ScanAndPay.png`}
             alt="QR Code"
             className="img-fluid"
             style={{ width: "220px", height: "220px" }}
