@@ -88,7 +88,23 @@ def build_food_image_url(filename):
         return ""
     if filename.startswith("http://") or filename.startswith("https://"):
         return filename
-    return f"http://localhost:5000/static/food_images/{filename}"
+    
+    # Dynamically determine backend base URL
+    backend_url = os.environ.get("BACKEND_URL")
+    if not backend_url:
+        try:
+            from flask import request, has_request_context
+            if has_request_context():
+                backend_url = request.host_url.rstrip("/")
+            else:
+                backend_url = "https://bitecheck-backend-p2c1.onrender.com"
+        except Exception:
+            backend_url = "https://bitecheck-backend-p2c1.onrender.com"
+            
+    if "onrender.com" in backend_url and backend_url.startswith("http://"):
+        backend_url = backend_url.replace("http://", "https://", 1)
+        
+    return f"{backend_url}/static/food_images/{filename}"
 
 
 def generate_secret_code():
