@@ -1,0 +1,16 @@
+.dashboard-wrapper {
+  height: 100vh;
+}
+
+.sidebar {
+  width: 250px;
+}
+
+.sidebar .nav-link {
+  margin: 5px 0;
+}
+
+.sidebar .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+}
