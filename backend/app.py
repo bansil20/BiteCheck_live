@@ -312,18 +312,30 @@ def add_student():
     os.makedirs(student_folder, exist_ok=True)
 
     saved_count = 0
-    for idx, img_b64 in enumerate(images_b64):
-        img = decode_image(img_b64)
-        if img is None:
-            continue
+    saved_count = 0
+    img = decode_image(images_b64[0])
+    if img is not None:
         face_img = preprocess_face_gray(img)
-        if face_img is None:
-            continue
-        cv2.imwrite(os.path.join(student_folder, f"face_{idx}.jpg"), face_img)
-        saved_count += 1
+        if face_img is not None:
+            # 1. Primary aligned face crop
+            cv2.imwrite(os.path.join(student_folder, "face_0.jpg"), face_img)
+            saved_count += 1
+
+            # 2. Slight variations in memory for high LBPH accuracy from 1 photo
+            flipped = cv2.flip(face_img, 1)
+            cv2.imwrite(os.path.join(student_folder, "face_1.jpg"), flipped)
+            saved_count += 1
+
+            bright = cv2.convertScaleAbs(face_img, alpha=1.1, beta=15)
+            cv2.imwrite(os.path.join(student_folder, "face_2.jpg"), bright)
+            saved_count += 1
+
+            dim = cv2.convertScaleAbs(face_img, alpha=0.9, beta=-15)
+            cv2.imwrite(os.path.join(student_folder, "face_3.jpg"), dim)
+            saved_count += 1
 
     if saved_count == 0:
-        return jsonify({"message": "❌ No valid faces detected in provided images"}), 400
+        return jsonify({"message": "❌ No valid face detected in provided photo"}), 400
 
     train_or_update_recognizer(new_studid)
 

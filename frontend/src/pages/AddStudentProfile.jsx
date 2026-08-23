@@ -38,31 +38,20 @@ function AddStudentProfile() {
     };
 
 
-    const handleCaptureFace = async () => {
+    const handleCaptureFace = () => {
         if (!webcamRef.current) return;
 
         setCapturing(true);
-        setProgress(0);
-        const images = [];
-
-        for (let i = 0; i < 20; i++) {
-            const imgSrc = webcamRef.current.getScreenshot();
-            if (imgSrc) {
-                images.push(imgSrc);
-            }
-
-            setProgress(i + 1);
-            await new Promise((r) => setTimeout(r, 200)); // wait 200ms between captures
+        const imgSrc = webcamRef.current.getScreenshot();
+        if (imgSrc) {
+            setFacesList([imgSrc]);
+            setFormData(prev => ({...prev, studface: imgSrc}));
+            setMessage("✅ Face image captured successfully!");
+            setShowCamera(false);
+        } else {
+            setMessage("❌ Could not capture photo. Please check camera.");
         }
-
-        setFacesList(images);
-
-        // Save first image for preview + formData
-        setFormData({...formData, studface: images[0]});
-
         setCapturing(false);
-        setMessage("✅ 20 face images captured successfully!");
-        setShowCamera(false);
     };
 
 
