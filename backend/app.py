@@ -538,16 +538,28 @@ def get_foods():
     foods = list(foods_col.find({"foodid": {"$in": food_ids}}, {"_id": 0}))
     food_map = {f["foodid"]: f for f in foods}
 
+    # Pre-calculate ratings in 1 single aggregation query
+    try:
+        pipeline = [
+            {"$group": {"_id": "$foodid", "avg_rating": {"$avg": "$rating"}, "total_reviews": {"$sum": 1}}}
+        ]
+        rating_stats = list(feedbacks_col.aggregate(pipeline))
+        rating_map = {r["_id"]: round(float(r["avg_rating"]), 1) for r in rating_stats}
+    except Exception:
+        rating_map = {}
+
     result = []
     for t in timetables:
         f = food_map.get(t["foodid"])
         if f:
+            fid = f["foodid"]
             result.append({
-                "foodid": f["foodid"],
+                "foodid": fid,
                 "foodname": f["foodname"],
                 "fooddescription": f.get("fooddescription", ""),
                 "foodimage": build_food_image_url(f.get("foodimage")),
-                "mealtype": t["mealtype"]
+                "mealtype": t["mealtype"],
+                "avg_rating": rating_map.get(fid, 0)
             })
     return jsonify(result)
 

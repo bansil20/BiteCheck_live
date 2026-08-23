@@ -1,3 +1,4 @@
+import { fetchWithCache } from "../utlis/cacheHelper";
 import { API_BASE_URL } from "../utlis/api";
 import {Container, Table} from "react-bootstrap";
 import "./Dashboard.css";
@@ -14,23 +15,21 @@ function TimeTable() {
         fetchTimetable();
     }, []);
 
-    const fetchTimetable = async () => {
-        try {
-            const res = await axios.get(`${API_BASE_URL}/get_timetable`);
-            console.log(res.data);
-            setTimetable(res.data);
-
-            // Group by day
-            const groupedData = {};
-            res.data.forEach(item => {
-                if (!groupedData[item.day]) groupedData[item.day] = {};
-                groupedData[item.day][item.mealtype] = item.food;
-            });
-            setGrouped(groupedData);
-        } catch (err) {
+    const fetchTimetable = () => {
+        fetchWithCache(`${API_BASE_URL}/get_timetable`, "timetable_list", (data) => {
+            if (Array.isArray(data)) {
+                setTimetable(data);
+                const groupedData = {};
+                data.forEach(item => {
+                    if (!groupedData[item.day]) groupedData[item.day] = {};
+                    groupedData[item.day][item.mealtype] = item.food;
+                });
+                setGrouped(groupedData);
+            }
+        }).catch((err) => {
             console.error("Error fetching timetable:", err);
-            alert("❌ No timetable data found");
-        }
+        });
+    };
     };
     return (
         <div className="container mt-4">

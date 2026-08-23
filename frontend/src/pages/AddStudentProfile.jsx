@@ -1,3 +1,4 @@
+import { invalidateCache } from "../utlis/cacheHelper";
 import { API_BASE_URL } from "../utlis/api";
 import React, {useState, useRef} from "react";
 import {Button, Col, Form, Row} from "react-bootstrap";
@@ -79,6 +80,7 @@ function AddStudentProfile() {
             console.log("rem", res.data);
 
             alert(res.data.message);
+            invalidateCache();
             navigate("/dashboard");
         } catch (err) {
             console.error(err);

@@ -1,3 +1,4 @@
+import { getCachedData, setCachedData } from "../utlis/cacheHelper";
 import { API_BASE_URL } from "../utlis/api";
 import React, {useEffect, useState} from "react";
 import {Row, Col, Card} from "react-bootstrap";
@@ -20,17 +21,18 @@ ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale);
 
 
 function Dashboard() {
-    const [foodData, setFoodData] = React.useState({});
-    const [totalStudents, setTotalStudents] = React.useState(null);
-    const [mealStats, setMealStats] = React.useState(null);
-    const [todayMealCounts, setTodayMealCounts] = React.useState({
+    const cachedDash = getCachedData("dashboard_stats") || {};
+    const [foodData, setFoodData] = React.useState(cachedDash.foodData || {});
+    const [totalStudents, setTotalStudents] = React.useState(cachedDash.totalStudents || null);
+    const [mealStats, setMealStats] = React.useState(cachedDash.mealStats || null);
+    const [todayMealCounts, setTodayMealCounts] = React.useState(cachedDash.todayMealCounts || {
         Breakfast: {present: 0, total: 0},
         Lunch: {present: 0, total: 0},
         Dinner: {present: 0, total: 0}
     });
     const [selectedMeal, setSelectedMeal] = React.useState("Dinner");
-    const [mealGraphData, setMealGraphData] = React.useState([]);
-    const [bestFood, setBestFood] = useState(null);
+    const [mealGraphData, setMealGraphData] = React.useState(cachedDash.mealGraphData || []);
+    const [bestFood, setBestFood] = useState(cachedDash.bestFood || null);
 
 
     const loadMealStats = async () => {
