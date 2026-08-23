@@ -34,65 +34,105 @@ function Dashboard() {
 
 
     const loadMealStats = async () => {
-        const res = await fetch(`${API_BASE_URL}/meal_attendance_stats`);
-        const data = await res.json();
-        setMealStats(data);
+        try {
+            const res = await fetch(`${API_BASE_URL}/meal_attendance_stats`);
+            if (res.ok) {
+                const data = await res.json();
+                setMealStats(data);
+                if (data.total !== undefined && data.total > 0) {
+                    setTotalStudents(data.total);
+                }
+            }
+        } catch (err) {
+            console.error("Error loading meal stats:", err);
+        }
     };
 
     const loadFoodDetails = async () => {
-        const foodRes = await fetch(`${API_BASE_URL}/get_current_food`);
-        const currentFood = await foodRes.json();
+        try {
+            const foodRes = await fetch(`${API_BASE_URL}/get_current_food`);
+            if (foodRes.ok) {
+                const currentFood = await foodRes.json();
+                if (currentFood && currentFood.foodid) {
+                    let sugText = "Serving standard meal menu.";
+                    try {
+                        const sugRes = await fetch(`${API_BASE_URL}/get_food_suggestion/${currentFood.foodid}`);
+                        if (sugRes.ok) {
+                            const suggestion = await sugRes.json();
+                            sugText = suggestion.suggestion_paragraph || sugText;
+                        }
+                    } catch (e) {
+                        console.warn("Could not fetch suggestion:", e);
+                    }
 
-        if (currentFood.foodid) {
-            const sugRes = await fetch(`${API_BASE_URL}/get_food_suggestion/${currentFood.foodid}`);
-            const suggestion = await sugRes.json();
-
-            setFoodData({
-                foodname: currentFood.foodname,
-                foodimage: currentFood.foodimage,
-                suggestion_paragraph: suggestion.suggestion_paragraph,
-                currentFood: currentFood.status === "current" ? "Current Meal" : "Upcoming Meal"
-            });
+                    setFoodData({
+                        foodname: currentFood.foodname || "Scheduled Meal",
+                        foodimage: currentFood.foodimage,
+                        suggestion_paragraph: sugText,
+                        currentFood: currentFood.status === "current" ? "Current Meal" : "Upcoming Meal"
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("Error loading food details:", err);
         }
     };
 
     const loadTotalStudents = async () => {
-        const res = await fetch(`${API_BASE_URL}/total_students`);
-        const data = await res.json();
-        setTotalStudents(data.total_students);
+        try {
+            const res = await fetch(`${API_BASE_URL}/total_students`);
+            if (res.ok) {
+                const data = await res.json();
+                setTotalStudents(data.total_students);
+            }
+        } catch (err) {
+            console.error("Error loading total students:", err);
+        }
     };
 
     const loadTodayMealCounts = async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/meal_today_counts`);
-            const data = await res.json();
-            setTodayMealCounts(data);
+            if (res.ok) {
+                const data = await res.json();
+                setTodayMealCounts(data);
+            }
         } catch (err) {
             console.error("Error loading today meal counts:", err);
         }
     };
 
     const loadBestFood = async () => {
-        const res = await fetch(`${API_BASE_URL}/best_food_last7`);
-        const data = await res.json();
-
-        if (data.message === "success") {
-            setBestFood({
-                name: data.name,
-                image: data.image,
-                avg_rating: data.avg_rating,
-                reviews: data.reviews
-            });
-        } else {
-            setBestFood(null);
+        try {
+            const res = await fetch(`${API_BASE_URL}/best_food_last7`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.name) {
+                    setBestFood({
+                        name: data.name,
+                        image: data.image,
+                        avg_rating: data.avg_rating,
+                        reviews: data.reviews
+                    });
+                } else {
+                    setBestFood(null);
+                }
+            }
+        } catch (err) {
+            console.error("Error loading best food:", err);
         }
     };
 
-
     const loadMealGraph = async (meal) => {
-        const res = await fetch(`${API_BASE_URL}/last7_meal_attendance/${meal}`);
-        const data = await res.json();
-        setMealGraphData(data);
+        try {
+            const res = await fetch(`${API_BASE_URL}/last7_meal_attendance/${meal}`);
+            if (res.ok) {
+                const data = await res.json();
+                setMealGraphData(Array.isArray(data) ? data : []);
+            }
+        } catch (err) {
+            console.error("Error loading meal graph:", err);
+        }
     };
 
 

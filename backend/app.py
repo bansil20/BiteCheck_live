@@ -317,46 +317,60 @@ def add_student():
     }), 200
 
 
+def format_student_doc(s):
+    face_val = s.get("face") or s.get("studface") or s.get("photos") or {}
+    if isinstance(face_val, str):
+        try:
+            import json as json_lib
+            face_val = json_lib.loads(face_val.replace('\"', '"'))
+        except Exception:
+            face_val = {"base64": face_val} if face_val.startswith("data:image") else {}
+
+    return {
+        "id": s.get("studid"),
+        "studid": s.get("studid"),
+        "name": s.get("name") or s.get("studname", ""),
+        "studname": s.get("name") or s.get("studname", ""),
+        "pnr": s.get("enrollment_no") or s.get("studpnr", ""),
+        "studpnr": s.get("enrollment_no") or s.get("studpnr", ""),
+        "enrollment_no": s.get("enrollment_no") or s.get("studpnr", ""),
+        "phone": s.get("phone") or s.get("studphone", ""),
+        "studphone": s.get("phone") or s.get("studphone", ""),
+        "course": s.get("course") or s.get("studcourse", ""),
+        "studcourse": s.get("course") or s.get("studcourse", ""),
+        "email": s.get("email") or s.get("studemail", ""),
+        "studemail": s.get("email") or s.get("studemail", ""),
+        "bloodgrp": s.get("blood_group") or s.get("studbloodgrp", ""),
+        "studbloodgrp": s.get("blood_group") or s.get("studbloodgrp", ""),
+        "blood_group": s.get("blood_group") or s.get("studbloodgrp", ""),
+        "remark": s.get("remark") or s.get("studremark", ""),
+        "studremark": s.get("remark") or s.get("studremark", ""),
+        "hostelroom": s.get("hostel_room") or s.get("studhostelroom", ""),
+        "studhostelroom": s.get("hostel_room") or s.get("studhostelroom", ""),
+        "hostel_room": s.get("hostel_room") or s.get("studhostelroom", ""),
+        "studsecretcode": s.get("secret_code") or s.get("studsecretcode", ""),
+        "secret_code": s.get("secret_code") or s.get("studsecretcode", ""),
+        "face": face_val,
+        "studface": face_val
+    }
+
+
 @app.route("/get_student", methods=["GET"])
 def get_students():
     students = list(students_col.find({}, {"_id": 0}))
     if not students:
-        return jsonify({"message": "❌ No students registered yet"}), 404
+        return jsonify({"message": "No students registered yet"}), 404
 
-    return jsonify([{
-        "id": s["studid"],
-        "name": s["studname"],
-        "pnr": s["studpnr"],
-        "phone": s["studphone"],
-        "course": s["studcourse"],
-        "email": s["studemail"],
-        "bloodgrp": s["studbloodgrp"],
-        "remark": s["studremark"],
-        "hostelroom": s["studhostelroom"],
-        "studsecretcode": s.get("studsecretcode"),
-        "face": s.get("studface")
-    } for s in students])
+    return jsonify([format_student_doc(s) for s in students]), 200
 
 
 @app.route("/get_student/<int:student_id>", methods=["GET"])
 def get_student_by_id(student_id):
     student = students_col.find_one({"studid": student_id}, {"_id": 0})
     if not student:
-        return jsonify({"error": "❌ Student not found"}), 404
+        return jsonify({"error": "Student not found"}), 404
 
-    return jsonify({
-        "id": student["studid"],
-        "name": student["studname"],
-        "pnr": student["studpnr"],
-        "phone": student["studphone"],
-        "course": student["studcourse"],
-        "email": student["studemail"],
-        "bloodgrp": student["studbloodgrp"],
-        "remark": student["studremark"],
-        "hostelroom": student["studhostelroom"],
-        "studsecretcode": student.get("studsecretcode"),
-        "face": student.get("studface")
-    })
+    return jsonify(format_student_doc(student)), 200
 
 
 @app.route("/total_students", methods=["GET"])
@@ -542,8 +556,7 @@ def get_attendance_in_stdprofile(studid):
     return jsonify(result)
 
 
-@app.route('/get_current_food', methods=['GET'])
-def get_current_food():
+def _fetch_current_or_upcoming_food_data():
     now = datetime.now()
     current_time = now.time()
     current_day = now.strftime("%A")
@@ -572,14 +585,14 @@ def get_current_food():
         if entry:
             food_item = foods_col.find_one({"foodid": entry["foodid"]})
             if food_item:
-                return jsonify({
+                return {
                     "status": "current",
                     "meal": current_meal,
                     "foodid": food_item["foodid"],
                     "foodname": food_item["foodname"],
                     "fooddescription": food_item.get("fooddescription") or "Delicious food",
                     "foodimage": build_food_image_url(food_item.get("foodimage"))
-                })
+                }
 
     if upcoming_meal:
         meal, start = upcoming_meal
@@ -588,7 +601,7 @@ def get_current_food():
             food_item = foods_col.find_one({"foodid": entry["foodid"]})
             if food_item:
                 meal_start_datetime = f"{now.strftime('%Y-%m-%d')} {start}"
-                return jsonify({
+                return {
                     "status": "upcoming",
                     "meal": meal,
                     "mealStartTime": meal_start_datetime,
@@ -596,8 +609,30 @@ def get_current_food():
                     "foodname": food_item["foodname"],
                     "fooddescription": food_item.get("fooddescription") or "Delicious food",
                     "foodimage": build_food_image_url(food_item.get("foodimage"))
-                })
+                }
 
+    # Fallback to first available timetable entry
+    fallback_entry = timetables_col.find_one({"day": current_day}) or timetables_col.find_one()
+    if fallback_entry:
+        food_item = foods_col.find_one({"foodid": fallback_entry["foodid"]})
+        if food_item:
+            return {
+                "status": "upcoming",
+                "meal": fallback_entry.get("mealtype", "Breakfast"),
+                "foodid": food_item["foodid"],
+                "foodname": food_item["foodname"],
+                "fooddescription": food_item.get("fooddescription") or "Delicious food",
+                "foodimage": build_food_image_url(food_item.get("foodimage"))
+            }
+
+    return None
+
+
+@app.route('/get_current_food', methods=['GET'])
+def get_current_food():
+    data = _fetch_current_or_upcoming_food_data()
+    if data:
+        return jsonify(data), 200
     return jsonify({"message": "No meal or upcoming food found."}), 404
 
 
@@ -607,9 +642,7 @@ def meal_attendance_stats():
     start_today = datetime.combine(today, datetime.min.time())
     end_today = datetime.combine(today, datetime.max.time())
 
-    response = get_current_food()
-    current_food = response.json if hasattr(response, "json") else response.get_json()
-
+    current_food = _fetch_current_or_upcoming_food_data()
     meal_order = ["Breakfast", "Lunch", "Dinner"]
 
     if current_food and current_food.get("status") == "current":
@@ -625,8 +658,9 @@ def meal_attendance_stats():
 
         entry = timetables_col.find_one({"day": today.strftime("%A"), "mealtype": meal})
         if not entry:
-            return jsonify({"error": "No timetable entry found"}), 404
-        foodid = entry["foodid"]
+            entry = timetables_col.find_one({"mealtype": meal}) or timetables_col.find_one()
+        
+        foodid = entry["foodid"] if entry else 1
 
     present_count = attendances_col.count_documents({
         "food_id": foodid,
@@ -642,8 +676,10 @@ def meal_attendance_stats():
         "foodid": foodid,
         "present": present_count,
         "absent": absent_count,
+        "foodname": current_food.get("foodname") if current_food else "Meal",
         "total": total_students
-    })
+    }), 200
+
 
 
 @app.route("/meal_today_counts", methods=["GET"])

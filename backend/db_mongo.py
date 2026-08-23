@@ -11,7 +11,8 @@ try:
 except Exception:
     pass
 
-load_dotenv()
+ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(dotenv_path=ENV_PATH)
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -57,8 +58,7 @@ def init_db():
         users_col.create_index([("userid", ASCENDING)], unique=True)
 
         students_col.create_index([("studid", ASCENDING)], unique=True)
-        students_col.create_index([("studpnr", ASCENDING)], unique=True)
-        students_col.create_index([("studsecretcode", ASCENDING)], unique=True, sparse=True)
+        students_col.create_index([("enrollment_no", ASCENDING)], unique=True, sparse=True)
 
         foods_col.create_index([("foodid", ASCENDING)], unique=True)
         timetables_col.create_index([("ttid", ASCENDING)], unique=True)
