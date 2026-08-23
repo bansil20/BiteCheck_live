@@ -531,15 +531,16 @@ def mark_attendance(student, via="face"):
 @app.route("/get_timetable", methods=["GET"])
 def get_timetable():
     timetables = list(timetables_col.find({}, {"_id": 0}))
-    data = []
-    for item in timetables:
-        food_item = foods_col.find_one({"foodid": item["foodid"]})
-        data.append({
-            "ttid": item["ttid"],
-            "day": item["day"],
-            "mealtype": item["mealtype"],
-            "food": food_item["foodname"] if food_item else "N/A"
-        })
+    food_ids = list(set(item["foodid"] for item in timetables if "foodid" in item))
+    foods = list(foods_col.find({"foodid": {"$in": food_ids}}, {"foodid": 1, "foodname": 1, "_id": 0}))
+    food_map = {f["foodid"]: f.get("foodname", "N/A") for f in foods}
+
+    data = [{
+        "ttid": item.get("ttid"),
+        "day": item.get("day"),
+        "mealtype": item.get("mealtype"),
+        "food": food_map.get(item.get("foodid"), "N/A")
+    } for item in timetables]
     return jsonify(data)
 
 
@@ -579,18 +580,25 @@ def get_foods():
 @app.route("/get_attendance/<int:studid>", methods=["GET"])
 def get_attendance_in_stdprofile(studid):
     attendance_records = list(attendances_col.find({"studid": studid}, {"_id": 0}).sort("timestamp", -1))
+    food_ids = list(set(att["food_id"] for att in attendance_records if "food_id" in att))
+    foods = list(foods_col.find({"foodid": {"$in": food_ids}}, {"foodid": 1, "foodname": 1, "_id": 0}))
+    timetables = list(timetables_col.find({"foodid": {"$in": food_ids}}, {"foodid": 1, "day": 1, "mealtype": 1, "_id": 0}))
+
+    food_map = {f["foodid"]: f.get("foodname", "N/A") for f in foods}
+    tt_map = {t["foodid"]: t for t in timetables}
+
     result = []
     for att in attendance_records:
-        food_item = foods_col.find_one({"foodid": att["food_id"]})
-        timetable_entry = timetables_col.find_one({"foodid": att["food_id"]})
+        fid = att.get("food_id")
+        tt = tt_map.get(fid, {})
         ts = att.get("timestamp")
         ts_str = ts.strftime("%Y-%m-%d %H:%M:%S") if isinstance(ts, datetime) else str(ts)
 
         result.append({
             "timestamp": ts_str,
-            "day": timetable_entry["day"] if timetable_entry else "N/A",
-            "meal": timetable_entry["mealtype"] if timetable_entry else "N/A",
-            "food": food_item["foodname"] if food_item else "N/A",
+            "day": tt.get("day", "N/A"),
+            "meal": tt.get("mealtype", "N/A"),
+            "food": food_map.get(fid, "N/A"),
             "status": att.get("status", "Present"),
         })
     return jsonify(result)
