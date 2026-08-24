@@ -44,6 +44,76 @@ HAAR_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_fronta
 EYE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
 TRAINER_PATH = os.path.join(os.path.dirname(__file__), "trainer.yml")
 
+GLOBAL_RECOGNIZER = None
+
+def get_or_load_recognizer():
+    global GLOBAL_RECOGNIZER
+    if GLOBAL_RECOGNIZER is not None:
+        return GLOBAL_RECOGNIZER
+    
+    if os.path.exists(TRAINER_PATH):
+        try:
+            rec = cv2.face.LBPHFaceRecognizer_create()
+            rec.read(TRAINER_PATH)
+            GLOBAL_RECOGNIZER = rec
+            return GLOBAL_RECOGNIZER
+        except Exception as e:
+            print(f"Error reading trainer.yml: {e}")
+            
+    # Auto-train from MongoDB Atlas student faces
+    print("🔄 Auto-building LBPH face recognition model from MongoDB Atlas...")
+    students = list(students_col.find({}))
+    face_samples = []
+    ids = []
+    
+    for s in students:
+        studid = s.get("studid")
+        if not studid:
+            continue
+        face_doc = s.get("studface") or s.get("face") or s.get("photos") or {}
+        b64 = None
+        if isinstance(face_doc, dict):
+            b64 = face_doc.get("base64")
+        elif isinstance(face_doc, str) and face_doc.startswith("data:image"):
+            b64 = face_doc
+            
+        if not b64:
+            continue
+            
+        img = decode_image(b64)
+        if img is None:
+            continue
+        face_img = preprocess_face_gray(img)
+        if face_img is None:
+            continue
+            
+        # Add primary crop + augmentations
+        face_samples.append(face_img)
+        ids.append(int(studid))
+        
+        flipped = cv2.flip(face_img, 1)
+        face_samples.append(flipped)
+        ids.append(int(studid))
+        
+        bright = cv2.convertScaleAbs(face_img, alpha=1.1, beta=15)
+        face_samples.append(bright)
+        ids.append(int(studid))
+        
+        dim = cv2.convertScaleAbs(face_img, alpha=0.9, beta=-15)
+        face_samples.append(dim)
+        ids.append(int(studid))
+        
+    if len(face_samples) > 0:
+        rec = cv2.face.LBPHFaceRecognizer_create()
+        rec.train(face_samples, np.array(ids))
+        os.makedirs(os.path.dirname(TRAINER_PATH), exist_ok=True)
+        rec.write(TRAINER_PATH)
+        GLOBAL_RECOGNIZER = rec
+        print(f"✅ Auto-trained model for {len(set(ids))} students from MongoDB Atlas!")
+        return GLOBAL_RECOGNIZER
+        
+    return None
+
 EMOJI_TO_RATING = {
     "😡": 1,
     "😒": 2,
@@ -200,7 +270,9 @@ def train_or_update_recognizer(_unused=None):
 
     recognizer.train(face_samples, np.array(ids))
     recognizer.write(TRAINER_PATH)
-    print(f"✅ LBPH model trained. Total students: {len(set(ids))}")
+    global GLOBAL_RECOGNIZER
+    GLOBAL_RECOGNIZER = recognizer
+    print(f"✅ LBPH model trained & cached. Total students: {len(set(ids))}")
 
 
 # -------------------- AUTH ROUTES --------------------
@@ -436,21 +508,21 @@ def recognize_face():
     if face_img is None:
         return jsonify({"recognized": False, "message": "❌ No face detected"}), 400
 
-    if not os.path.exists(TRAINER_PATH):
-        return jsonify({"recognized": False, "message": "❌ LBPH model not trained yet"}), 400
+    recognizer = get_or_load_recognizer()
+    if recognizer is None:
+        return jsonify({"recognized": False, "message": "❌ No student faces registered yet"}), 400
 
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.read(TRAINER_PATH)
     label, confidence = recognizer.predict(face_img)
+    match_score = max(0, min(100, int((1.0 - confidence / 100.0) * 100)))
+    print(f"LBPH prediction: label={label}, confidence={confidence:.1f}, match={match_score}%")
 
-    print(f"LBPH predicted label={label}, confidence={confidence}")
-    THRESHOLD = 90.0
+    THRESHOLD = 85.0
 
     if confidence < THRESHOLD:
         student = students_col.find_one({"studid": int(label)})
         if not student:
             return jsonify({"recognized": False, "message": "❌ Unknown student"}), 404
-        return mark_attendance(student, via="face")
+        return mark_attendance(student, via="face", confidence=confidence)
 
     return jsonify({
         "recognized": False,
@@ -458,9 +530,9 @@ def recognize_face():
     }), 400
 
 
-def mark_attendance(student, via="face"):
-    now = datetime.now()
-    today = date.today()
+def mark_attendance(student, via="face", confidence=None):
+    now = datetime.now(IST)
+    today = now.date()
     current_day = now.strftime("%A")
     current_time = now.time()
 
