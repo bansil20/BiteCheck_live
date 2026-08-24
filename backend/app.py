@@ -153,6 +153,18 @@ def decode_image(img_data):
         return None
 
 
+
+def format_datetime_to_ist_str(ts, fmt="%Y-%m-%d %H:%M:%S"):
+    if not ts:
+        return "N/A"
+    if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            ts_ist = pytz.utc.localize(ts).astimezone(IST)
+        else:
+            ts_ist = ts.astimezone(IST)
+        return ts_ist.strftime(fmt)
+    return str(ts)
+
 def build_food_image_url(filename):
     if not filename:
         return ""
@@ -664,7 +676,7 @@ def get_attendance_in_stdprofile(studid):
         fid = att.get("food_id")
         tt = tt_map.get(fid, {})
         ts = att.get("timestamp")
-        ts_str = ts.strftime("%Y-%m-%d %H:%M:%S") if isinstance(ts, datetime) else str(ts)
+        ts_str = format_datetime_to_ist_str(ts)
 
         result.append({
             "timestamp": ts_str,
@@ -1006,7 +1018,7 @@ def get_attendance_data(student_id):
         food_item = foods_col.find_one({"foodid": r["food_id"]})
         tt_item = timetables_col.find_one({"foodid": r["food_id"]})
         ts = r.get("timestamp")
-        ts_str = ts.strftime("%Y-%m-%d %H:%M") if isinstance(ts, datetime) else str(ts)
+        ts_str = format_datetime_to_ist_str(ts, fmt="%Y-%m-%d %H:%M")
         out.append({
             "timestamp": ts_str,
             "status": r.get("status", "Present"),
