@@ -12,7 +12,7 @@ function StudentProfile() {
     const [attendance, setAttendance] = useState([]);
     const [loading, setLoading] = useState(true);
     const [visibleCount, setVisibleCount] = useState(8);
-    const tableContainerRef = useRef(null);
+    const observerRef = useRef(null);
 
     useEffect(() => {
         if (!student.id && !student.studid) {
@@ -31,14 +31,32 @@ function StudentProfile() {
             });
     }, [student.id, student.studid]);
 
-    // Handle scroll down to load 8 more attendance records
-    const handleScroll = (e) => {
-        const { scrollTop, scrollHeight, clientHeight } = e.target;
-        if (scrollHeight - scrollTop <= clientHeight + 40) {
-            if (visibleCount < attendance.length) {
-                setVisibleCount((prev) => Math.min(prev + 8, attendance.length));
-            }
+    // Infinite Scroll using IntersectionObserver (Triggers when bottom of table is reached)
+    useEffect(() => {
+        if (loading || visibleCount >= attendance.length) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setVisibleCount((prev) => Math.min(prev + 8, attendance.length));
+                }
+            },
+            { threshold: 0.1, rootMargin: "100px" }
+        );
+
+        if (observerRef.current) {
+            observer.observe(observerRef.current);
         }
+
+        return () => {
+            if (observerRef.current) {
+                observer.unobserve(observerRef.current);
+            }
+        };
+    }, [loading, visibleCount, attendance.length]);
+
+    const handleLoadMore = () => {
+        setVisibleCount((prev) => Math.min(prev + 8, attendance.length));
     };
 
     const handleDownloadPDF = async () => {
@@ -111,13 +129,13 @@ function StudentProfile() {
                         </div>
 
                         {/* Attendance Table Card with Infinite Scroll (8 at a time) */}
-                        <div className="card shadow-sm border-0 rounded-4">
+                        <div className="card shadow-sm border-0 rounded-4 overflow-hidden">
                             <div className="card-header bg-light d-flex justify-content-between align-items-center">
                                 <span className="fw-bold">Attendance Records</span>
                                 {attendance.length > 0 && (
-                                    <small className="text-muted fw-semibold">
+                                    <span className="badge bg-secondary-subtle text-dark fw-semibold">
                                         Showing {Math.min(visibleCount, attendance.length)} of {attendance.length}
-                                    </small>
+                                    </span>
                                 )}
                             </div>
                             <div className="card-body p-0">
@@ -127,15 +145,7 @@ function StudentProfile() {
                                     </div>
                                 ) : attendance.length > 0 ? (
                                     <>
-                                        <div
-                                            ref={tableContainerRef}
-                                            onScroll={handleScroll}
-                                            style={{
-                                                maxHeight: "440px",
-                                                overflowY: "auto",
-                                                scrollbarWidth: "thin"
-                                            }}
-                                        >
+                                        <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                                             <Table hover responsive className="align-middle mb-0 text-center">
                                                 <thead className="table-light sticky-top" style={{ zIndex: 1 }}>
                                                     <tr>
@@ -160,14 +170,20 @@ function StudentProfile() {
                                                     ))}
                                                 </tbody>
                                             </Table>
+
+                                            {/* Intersection Observer Trigger */}
+                                            <div ref={observerRef} style={{ height: "20px" }} />
                                         </div>
 
-                                        {/* Scroll Load More Indicator */}
+                                        {/* Clickable or Auto-load footer button */}
                                         {visibleCount < attendance.length && (
                                             <div className="text-center py-2 bg-light border-top">
-                                                <small className="text-muted">
-                                                    Scroll down inside the table to load more records ({attendance.length - visibleCount} remaining)
-                                                </small>
+                                                <button
+                                                    className="btn btn-sm btn-link text-decoration-none fw-semibold text-primary"
+                                                    onClick={handleLoadMore}
+                                                >
+                                                    ⬇️ Load More Records ({attendance.length - visibleCount} remaining)
+                                                </button>
                                             </div>
                                         )}
                                     </>
